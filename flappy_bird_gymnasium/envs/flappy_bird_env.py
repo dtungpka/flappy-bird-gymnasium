@@ -38,23 +38,7 @@ import numpy as np
 import pygame
 
 from flappy_bird_gymnasium.envs import utils
-from flappy_bird_gymnasium.envs.constants import (
-    BACKGROUND_WIDTH,
-    BASE_WIDTH,
-    FILL_BACKGROUND_COLOR,
-    LIDAR_MAX_DISTANCE,
-    PIPE_HEIGHT,
-    PIPE_VEL_X,
-    PIPE_WIDTH,
-    PLAYER_ACC_Y,
-    PLAYER_FLAP_ACC,
-    PLAYER_HEIGHT,
-    PLAYER_MAX_VEL_Y,
-    PLAYER_PRIVATE_ZONE,
-    PLAYER_ROT_THR,
-    PLAYER_VEL_ROT,
-    PLAYER_WIDTH,
-)
+from flappy_bird_gymnasium.envs.constants import GameConstants  # Import the GameConstants class
 from flappy_bird_gymnasium.envs.lidar import LIDAR
 
 
@@ -146,11 +130,14 @@ class FlappyBirdEnv(gymnasium.Env):
         self._pipe_color = pipe_color
         self._bg_type = background
 
+        self.constants = GameConstants()  # Create an instance of GameConstants
+
+        # Update references to constants using self.constants
         self._ground = {"x": 0, "y": self._screen_height * 0.79}
-        self._base_shift = BASE_WIDTH - BACKGROUND_WIDTH
+        self._base_shift = self.constants.BASE_WIDTH - self.constants.BACKGROUND_WIDTH
 
         if use_lidar:
-            self._lidar = LIDAR(LIDAR_MAX_DISTANCE)
+            self._lidar = LIDAR(self.constants)
             self._get_observation = self._get_observation_lidar
         else:
             self._get_observation = self._get_observation_features
@@ -203,15 +190,15 @@ class FlappyBirdEnv(gymnasium.Env):
 
         self._sound_cache = None
         if action == Actions.FLAP:
-            if self._player_y > -2 * PLAYER_HEIGHT:
-                self._player_vel_y = PLAYER_FLAP_ACC
+            if self._player_y > -2 * self.constants.PLAYER_HEIGHT:
+                self._player_vel_y = self.constants.PLAYER_FLAP_ACC
                 self._player_flapped = True
                 self._sound_cache = "wing"
 
         # check for score
-        player_mid_pos = self._player_x + PLAYER_WIDTH / 2
+        player_mid_pos = self._player_x + self.constants.PLAYER_WIDTH / 2
         for pipe in self._upper_pipes:
-            pipe_mid_pos = pipe["x"] + PIPE_WIDTH / 2
+            pipe_mid_pos = pipe["x"] + self.constants.PIPE_WIDTH / 2
             if pipe_mid_pos <= player_mid_pos < pipe_mid_pos + 4:
                 self._score += 1
                 reward = 1  # reward for passed pipe
@@ -226,11 +213,11 @@ class FlappyBirdEnv(gymnasium.Env):
 
         # rotate the player
         if self._player_rot > -90:
-            self._player_rot -= PLAYER_VEL_ROT
+            self._player_rot -= self.constants.PLAYER_VEL_ROT
 
         # player's movement
-        if self._player_vel_y < PLAYER_MAX_VEL_Y and not self._player_flapped:
-            self._player_vel_y += PLAYER_ACC_Y
+        if self._player_vel_y < self.constants.PLAYER_MAX_VEL_Y and not self._player_flapped:
+            self._player_vel_y += self.constants.PLAYER_ACC_Y
 
         if self._player_flapped:
             self._player_flapped = False
@@ -240,7 +227,7 @@ class FlappyBirdEnv(gymnasium.Env):
             self._player_rot = 45
 
         self._player_y += min(
-            self._player_vel_y, self._ground["y"] - self._player_y - PLAYER_HEIGHT
+            self._player_vel_y, self._ground["y"] - self._player_y - self.constants.PLAYER_HEIGHT
         )
 
         # move pipes to left
@@ -249,7 +236,7 @@ class FlappyBirdEnv(gymnasium.Env):
             low_pipe["x"] += PIPE_VEL_X
 
             # it is out of the screen
-            if up_pipe["x"] < -PIPE_WIDTH:
+            if up_pipe["x"] < -self.constants.PIPE_WIDTH:
                 new_up_pipe, new_low_pipe = self._get_random_pipe()
                 up_pipe["x"] = new_up_pipe["x"]
                 up_pipe["y"] = new_up_pipe["y"]
@@ -273,12 +260,12 @@ class FlappyBirdEnv(gymnasium.Env):
                 self._upper_pipes,
                 key=lambda x: np.sqrt(
                     (self._player_x - x["x"]) ** 2
-                    + (self._player_y - (x["y"] + PIPE_HEIGHT)) ** 2
+                    + (self._player_y - (x["y"] + self.constants.PIPE_HEIGHT)) ** 2
                 ),
             )[0]
             # find ray closest to the obstacle
             min_index = np.argmin(obs)
-            min_value = obs[min_index] * LIDAR_MAX_DISTANCE
+            min_value = obs[min_index] * self.constants.LIDAR_MAX_DISTANCE
             # mean approach to the obstacle
             if "pipe_mean_value" in self._statistics:
                 self._statistics["pipe_mean_value"] = self._statistics[
@@ -315,11 +302,11 @@ class FlappyBirdEnv(gymnasium.Env):
             terminal = True
             self._player_vel_y = 0
             if self._debug and self._use_lidar:
-                if ((self._player_x + PLAYER_WIDTH) - up_pipe["x"]) > (0 + 5) and (
+                if ((self._player_x + self.constants.PLAYER_WIDTH) - up_pipe["x"]) > (0 + 5) and (
                     self._player_x - up_pipe["x"]
-                ) < PIPE_WIDTH:
+                ) < self.constants.PIPE_WIDTH:
                     print("BETWEEN PIPES")
-                elif ((self._player_x + PLAYER_WIDTH) - up_pipe["x"]) < (0 + 5):
+                elif ((self._player_x + self.constants.PLAYER_WIDTH) - up_pipe["x"]) < (0 + 5):
                     print("IN FRONT OF")
                 print(
                     f"obs: [{self._statistics['pipe_min_index']},"
@@ -344,7 +331,7 @@ class FlappyBirdEnv(gymnasium.Env):
 
         # Player's info:
         self._player_x = int(self._screen_width * 0.2)
-        self._player_y = int((self._screen_height - PLAYER_HEIGHT) / 2)
+        self._player_y = int((self._screen_height - self.constants.PLAYER_HEIGHT) / 2)
         self._player_vel_y = -9  # player"s velocity along Y
         self._player_rot = 45  # player"s rotation
         self._player_idx = 0
@@ -421,31 +408,31 @@ class FlappyBirdEnv(gymnasium.Env):
         gap_y = gapYs[index]
         gap_y += int(self._ground["y"] * 0.2)
 
-        pipe_x = self._screen_width + PIPE_WIDTH + (self._screen_width * 0.2)
+        pipe_x = self._screen_width + self.constants.PIPE_WIDTH + (self._screen_width * 0.2)
         return [
-            {"x": pipe_x, "y": gap_y - PIPE_HEIGHT},  # upper pipe
+            {"x": pipe_x, "y": gap_y - self.constants.PIPE_HEIGHT},  # upper pipe
             {"x": pipe_x, "y": gap_y + self._pipe_gap},  # lower pipe
         ]
 
     def _check_crash(self) -> bool:
         """Returns True if player collides with the ground (base) or a pipe."""
         # if player crashes into ground
-        if self._player_y + PLAYER_HEIGHT >= self._ground["y"] - 1:
+        if self._player_y + self.constants.PLAYER_HEIGHT >= self._ground["y"] - 1:
             if self._debug and self._use_lidar:
                 print("CRASH TO THE GROUND")
             return True
         else:
             player_rect = pygame.Rect(
-                self._player_x, self._player_y, PLAYER_WIDTH, PLAYER_HEIGHT
+                self._player_x, self._player_y, self.constants.PLAYER_WIDTH, self.constants.PLAYER_HEIGHT
             )
 
             for up_pipe, low_pipe in zip(self._upper_pipes, self._lower_pipes):
                 # upper and lower pipe rects
                 up_pipe_rect = pygame.Rect(
-                    up_pipe["x"], up_pipe["y"], PIPE_WIDTH, PIPE_HEIGHT
+                    up_pipe["x"], up_pipe["y"], self.constants.PIPE_WIDTH, self.constants.PIPE_HEIGHT
                 )
                 low_pipe_rect = pygame.Rect(
-                    low_pipe["x"], low_pipe["y"], PIPE_WIDTH, PIPE_HEIGHT
+                    low_pipe["x"], low_pipe["y"], self.constants.PIPE_WIDTH, self.constants.PIPE_HEIGHT
                 )
 
                 # check collision
@@ -456,7 +443,7 @@ class FlappyBirdEnv(gymnasium.Env):
                     if up_collide:
                         print("CRASH TO UPPER PIPE")
                         print(
-                            f"up_pipe: {[up_pipe['x'], up_pipe['y']+PIPE_HEIGHT]},"
+                            f"up_pipe: {[up_pipe['x'], up_pipe['y']+self.constants.PIPE_HEIGHT]},"
                             f"low_pipe: {low_pipe},"
                             f"player: [{self._player_x}, {self._player_y}]"
                         )
@@ -464,7 +451,7 @@ class FlappyBirdEnv(gymnasium.Env):
                     if low_collide:
                         print("CRASH TO LOWER PIPE")
                         print(
-                            f"up_pipe: {[up_pipe['x'], up_pipe['y']+PIPE_HEIGHT]},"
+                            f"up_pipe: {[up_pipe['x'], up_pipe['y']+self.constants.PIPE_HEIGHT]},"
                             f"low_pipe: {low_pipe},"
                             f"player: [{self._player_x}, {self._player_y}]"
                         )
@@ -483,7 +470,7 @@ class FlappyBirdEnv(gymnasium.Env):
                 pipes.append((self._screen_width, 0, self._screen_height))
             else:
                 pipes.append(
-                    (low_pipe["x"], (up_pipe["y"] + PIPE_HEIGHT), low_pipe["y"])
+                    (low_pipe["x"], (up_pipe["y"] + self.constants.PIPE_HEIGHT), low_pipe["y"])
                 )
 
         pipes = sorted(pipes, key=lambda x: x[0])
@@ -501,7 +488,7 @@ class FlappyBirdEnv(gymnasium.Env):
                 for h, v1, v2 in pipes
             ]
             pos_y /= self._screen_height
-            vel_y /= PLAYER_MAX_VEL_Y
+            vel_y /= self.constants.PLAYER_MAX_VEL_Y
             rot /= 90
 
         return (
@@ -535,13 +522,13 @@ class FlappyBirdEnv(gymnasium.Env):
             self._ground,
         )
 
-        if np.any(distances < PLAYER_PRIVATE_ZONE):
+        if np.any(distances < self.constants.PLAYER_PRIVATE_ZONE):
             reward = -0.5
         else:
             reward = None
 
         if self._normalize_obs:
-            distances = distances / LIDAR_MAX_DISTANCE
+            distances = distances / self.constants.LIDAR_MAX_DISTANCE
 
         return distances, reward
 
@@ -593,7 +580,7 @@ class FlappyBirdEnv(gymnasium.Env):
         if self._images["background"] is not None:
             self._surface.blit(self._images["background"], (0, 0))
         else:
-            self._surface.fill(FILL_BACKGROUND_COLOR)
+            self._surface.fill(self.constants.FILL_BACKGROUND_COLOR)
 
         # Pipes
         for up_pipe, low_pipe in zip(self._upper_pipes, self._lower_pipes):
@@ -604,8 +591,8 @@ class FlappyBirdEnv(gymnasium.Env):
         self._surface.blit(self._images["base"], (self._ground["x"], self._ground["y"]))
 
         # Getting player's rotation
-        visible_rot = PLAYER_ROT_THR
-        if self._player_rot <= PLAYER_ROT_THR:
+        visible_rot = self.constants.PLAYER_ROT_THR
+        if self._player_rot <= self.constants.PLAYER_ROT_THR:
             visible_rot = self._player_rot
 
         # LIDAR
@@ -614,20 +601,20 @@ class FlappyBirdEnv(gymnasium.Env):
 
             # Draw private zone
             target_rect = pygame.Rect(
-                self._player_x - PLAYER_PRIVATE_ZONE,
-                self._player_y - PLAYER_PRIVATE_ZONE,
-                PLAYER_PRIVATE_ZONE * 2 + PLAYER_WIDTH,
-                PLAYER_PRIVATE_ZONE * 2 + PLAYER_HEIGHT,
+                self._player_x - self.constants.PLAYER_PRIVATE_ZONE,
+                self._player_y - self.constants.PLAYER_PRIVATE_ZONE,
+                self.constants.PLAYER_PRIVATE_ZONE * 2 + self.constants.PLAYER_WIDTH,
+                self.constants.PLAYER_PRIVATE_ZONE * 2 + self.constants.PLAYER_HEIGHT,
             )
             shape_surf = pygame.Surface(target_rect.size, pygame.SRCALPHA)
             pygame.draw.circle(
                 shape_surf,
                 "blue",
                 (
-                    PLAYER_PRIVATE_ZONE + PLAYER_WIDTH,
-                    PLAYER_PRIVATE_ZONE + (PLAYER_HEIGHT / 2),
+                    self.constants.PLAYER_PRIVATE_ZONE + self.constants.PLAYER_WIDTH,
+                    self.constants.PLAYER_PRIVATE_ZONE + (self.constants.PLAYER_HEIGHT / 2),
                 ),
-                PLAYER_PRIVATE_ZONE,
+                self.constants.PLAYER_PRIVATE_ZONE,
                 1,
                 draw_top_left=False,
                 draw_top_right=True,
@@ -637,8 +624,8 @@ class FlappyBirdEnv(gymnasium.Env):
             pygame.draw.circle(
                 shape_surf,
                 "blue",
-                (PLAYER_PRIVATE_ZONE, PLAYER_PRIVATE_ZONE + (PLAYER_HEIGHT / 2)),
-                PLAYER_PRIVATE_ZONE,
+                (self.constants.PLAYER_PRIVATE_ZONE, self.constants.PLAYER_PRIVATE_ZONE + (self.constants.PLAYER_HEIGHT / 2)),
+                self.constants.PLAYER_PRIVATE_ZONE,
                 1,
                 draw_top_left=True,
                 draw_top_right=False,
@@ -648,8 +635,8 @@ class FlappyBirdEnv(gymnasium.Env):
             pygame.draw.circle(
                 shape_surf,
                 "blue",
-                (PLAYER_PRIVATE_ZONE + (PLAYER_WIDTH / 2), PLAYER_PRIVATE_ZONE),
-                PLAYER_PRIVATE_ZONE,
+                (self.constants.PLAYER_PRIVATE_ZONE + (self.constants.PLAYER_WIDTH / 2), self.constants.PLAYER_PRIVATE_ZONE),
+                self.constants.PLAYER_PRIVATE_ZONE,
                 1,
                 draw_top_left=True,
                 draw_top_right=True,
@@ -660,10 +647,10 @@ class FlappyBirdEnv(gymnasium.Env):
                 shape_surf,
                 "blue",
                 (
-                    PLAYER_PRIVATE_ZONE + (PLAYER_WIDTH / 2),
-                    PLAYER_PRIVATE_ZONE + PLAYER_HEIGHT,
+                    self.constants.PLAYER_PRIVATE_ZONE + (self.constants.PLAYER_WIDTH / 2),
+                    self.constants.PLAYER_PRIVATE_ZONE + self.constants.PLAYER_HEIGHT,
                 ),
-                PLAYER_PRIVATE_ZONE,
+                self.constants.PLAYER_PRIVATE_ZONE,
                 1,
                 draw_top_left=False,
                 draw_top_right=False,
@@ -712,3 +699,34 @@ class FlappyBirdEnv(gymnasium.Env):
         # Sounds:
         if self._audio_on and self._sound_cache is not None:
             self._sounds[self._sound_cache].play()
+
+    def set_constants(self, constants: GameConstants) -> None:
+        """Updates the game's constants.
+
+        Args:
+            constants (GameConstants): The new constants to be used by the game.
+        """
+        self.constants = constants
+
+        # Update references to constants using self.constants
+        self._ground["y"] = self._screen_height * 0.79
+        self._base_shift = self.constants.BASE_WIDTH - self.constants.BACKGROUND_WIDTH
+
+    def update_constants(self, **kwargs):
+        """Updates game constants in realtime.
+        
+        Args:
+            **kwargs: Key-value pairs of constants to update
+            
+        Example:
+            env.update_constants(
+                PLAYER_FLAP_ACC=-9,
+                PLAYER_MAX_VEL_Y=10,
+                PIPE_WIDTH=60
+            )
+        """
+        for key, value in kwargs.items():
+            if hasattr(self.constants, key):
+                setattr(self.constants, key, value)
+            else:
+                raise ValueError(f"Invalid constant name: {key}")

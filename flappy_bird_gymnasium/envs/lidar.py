@@ -1,20 +1,12 @@
 import numpy as np
 import pygame
 
-from flappy_bird_gymnasium.envs.constants import (
-    BASE_HEIGHT,
-    BASE_WIDTH,
-    PIPE_HEIGHT,
-    PIPE_WIDTH,
-    PLAYER_HEIGHT,
-    PLAYER_ROT_THR,
-    PLAYER_WIDTH,
-)
-
+from flappy_bird_gymnasium.envs.constants import GameConstants
 
 class LIDAR:
-    def __init__(self, max_distance):
-        self._max_distance = max_distance
+    def __init__(self, constants: GameConstants):
+        self._constants = constants
+        self._max_distance = constants.LIDAR_MAX_DISTANCE
         self.collisions = np.zeros((180, 2))
 
     def draw(self, surface, player_x, player_y):
@@ -23,8 +15,8 @@ class LIDAR:
                 surface,
                 "red",
                 (
-                    player_x + PLAYER_WIDTH,
-                    player_y + (PLAYER_HEIGHT / 2),
+                    player_x + self._constants.PLAYER_WIDTH,
+                    player_y + (self._constants.PLAYER_HEIGHT / 2),
                 ),
                 (
                     self.collisions[i][0],
@@ -45,12 +37,12 @@ class LIDAR:
         result = np.empty([180])
 
         # LIDAR position on torso
-        offset_x = player_x + PLAYER_WIDTH
-        offset_y = player_y + (PLAYER_HEIGHT / 2)
+        offset_x = player_x + self._constants.PLAYER_WIDTH
+        offset_y = player_y + (self._constants.PLAYER_HEIGHT / 2)
 
         # Getting player's rotation
-        visible_rot = PLAYER_ROT_THR
-        if player_rot <= PLAYER_ROT_THR:
+        visible_rot = self._constants.PLAYER_ROT_THR
+        if player_rot <= self._constants.PLAYER_ROT_THR:
             visible_rot = player_rot
 
         # sort pipes from nearest to farthest
@@ -66,22 +58,20 @@ class LIDAR:
             self.collisions[i] = (x, y)
 
             # check ground collision
-            ground_rect = pygame.Rect(0, ground["y"], BASE_WIDTH, BASE_HEIGHT)
+            ground_rect = pygame.Rect(0, ground["y"], self._constants.BASE_WIDTH, self._constants.BASE_HEIGHT)
             collision = ground_rect.clipline(line)
             if collision:
                 self.collisions[i] = collision[0]
 
             # check pipe collision
             for up_pipe, low_pipe in zip(upper_pipes, lower_pipes):
-                # upper and lower pipe rects
                 up_pipe_rect = pygame.Rect(
-                    up_pipe["x"], up_pipe["y"], PIPE_WIDTH, PIPE_HEIGHT
+                    up_pipe["x"], up_pipe["y"], self._constants.PIPE_WIDTH, self._constants.PIPE_HEIGHT
                 )
                 low_pipe_rect = pygame.Rect(
-                    low_pipe["x"], low_pipe["y"], PIPE_WIDTH, PIPE_HEIGHT
+                    low_pipe["x"], low_pipe["y"], self._constants.PIPE_WIDTH, self._constants.PIPE_HEIGHT
                 )
 
-                # check collision
                 collision_A = up_pipe_rect.clipline(line)
                 collision_B = low_pipe_rect.clipline(line)
 
