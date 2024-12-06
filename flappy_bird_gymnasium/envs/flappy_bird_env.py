@@ -232,8 +232,8 @@ class FlappyBirdEnv(gymnasium.Env):
 
         # move pipes to left
         for up_pipe, low_pipe in zip(self._upper_pipes, self._lower_pipes):
-            up_pipe["x"] += PIPE_VEL_X
-            low_pipe["x"] += PIPE_VEL_X
+            up_pipe["x"] += self.constants.PIPE_VEL_X
+            low_pipe["x"] += self.constants.PIPE_VEL_X
 
             # it is out of the screen
             if up_pipe["x"] < -self.constants.PIPE_WIDTH:
